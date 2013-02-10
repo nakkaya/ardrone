@@ -172,5 +172,9 @@
     - Negative percentage value will make the drone go down, thus go downwards.
     - Positive percentage value will make the drone rise up in the air, thus go upwards."
   [pitch roll yaw gaz]
-  (swap! attitude-state assoc :pitch pitch :roll roll :yaw yaw :gaz gaz)
+  (swap! attitude-state
+         (fn [curr]
+           (merge-with (fn [a b] (if (nil? b) a b))
+                       curr
+                       {:pitch pitch :roll roll :yaw yaw :gaz gaz})))
   (send-attitude-command))
