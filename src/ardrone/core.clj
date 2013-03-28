@@ -22,6 +22,7 @@
 
 (defn- get-int [buff offset]
   (.intValue
+   ^Long
    (reduce (fn [h v]
              (let [shift (* v 8)]
                (+ h (bit-shift-left
@@ -32,17 +33,17 @@
 (let [socket (agent (doto (java.net.DatagramSocket.)
                       (.setSoTimeout 3000)))]
   (defn- send-at-command [cmd]
-    (let [bytes (.getBytes (str cmd "\r"))
-          packet (java.net.DatagramPacket. bytes
-                                           (count bytes)
-                                           drone-ip
-                                           5556
-                                           )]
-      (send socket (fn [s] (try (doto s
-                                 (.send packet))
-                               (catch Exception e
-                                 (println "Warn:" e)
-                                 s)))))))
+    (let [buffer (.getBytes (str cmd "\r"))
+          packet (java.net.DatagramPacket. ^bytes buffer
+                                           ^Integer (count buffer)
+                                           ^java.net.Inet4Address drone-ip
+                                           5556)]
+      (send socket (fn [^java.net.DatagramSocket s]
+                     (try (doto s
+                            (.send packet))
+                          (catch Exception e
+                            (println "Warn:" e)
+                            s)))))))
 
 (defonce nav-data-socket (doto (java.net.DatagramSocket. 5554)
                            (.setSoTimeout 5000)))
@@ -58,12 +59,15 @@
 (let [trigger-buffer (byte-array (map byte [0x01 0x00 0x00 0x00]))
       trigger-buffer-size (count trigger-buffer)]
   (defn- parse-nav-data []
-    (let [packet (java.net.DatagramPacket. trigger-buffer trigger-buffer-size drone-ip 5554)]
+    (let [packet (java.net.DatagramPacket. trigger-buffer
+                                           trigger-buffer-size
+                                           ^java.net.Inet4Address drone-ip
+                                           5554)]
       (try
-        (.send nav-data-socket packet)
+        (.send ^java.net.DatagramSocket nav-data-socket packet)
         (let [buffer (byte-array 1024)
               packet-rcv (java.net.DatagramPacket. buffer 1024)]
-          (.receive nav-data-socket packet-rcv)
+          (.receive ^java.net.DatagramSocket nav-data-socket packet-rcv)
 
           (if (= (get-int buffer 0) 0x55667788)
             (swap! nav-data-state assoc
