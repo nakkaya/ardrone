@@ -57,7 +57,9 @@
                                :listening false}))
 
 (let [trigger-buffer (byte-array (map byte [0x01 0x00 0x00 0x00]))
-      trigger-buffer-size (count trigger-buffer)]
+      trigger-buffer-size (count trigger-buffer)
+      nav-data-buffer (byte-array 1024)
+      nav-data-buffer-size (count nav-data-buffer)]
   (defn- parse-nav-data []
     (let [packet (java.net.DatagramPacket. trigger-buffer
                                            trigger-buffer-size
@@ -65,14 +67,13 @@
                                            5554)]
       (try
         (.send ^java.net.DatagramSocket nav-data-socket packet)
-        (let [buffer (byte-array 1024)
-              packet-rcv (java.net.DatagramPacket. buffer 1024)]
+        (let [packet-rcv (java.net.DatagramPacket. nav-data-buffer nav-data-buffer-size)]
           (.receive ^java.net.DatagramSocket nav-data-socket packet-rcv)
 
-          (if (= (get-int buffer 0) 0x55667788)
+          (if (= (get-int nav-data-buffer 0) 0x55667788)
             (swap! nav-data-state assoc
-                   :battery (get-int buffer 24)
-                   :state (let [state (bit-shift-right (get-int buffer 20) 16)]
+                   :battery (get-int nav-data-buffer 24)
+                   :state (let [state (bit-shift-right (get-int nav-data-buffer 20) 16)]
                             (cond (= state 0) :default
                                   (= state 1) :init
                                   (= state 2) :landed
@@ -83,10 +84,10 @@
                                   (= state 7) :trans-gotofix
                                   (= state 8) :trans-landing
                                   :default :invalid))
-                   :roll (/ (Float/intBitsToFloat (get-int buffer 32)) 1000)
-                   :yaw (/ (Float/intBitsToFloat (get-int buffer 36)) 1000)
-                   :alt (double (/ (get-int buffer 40) 1000))
-                   :pitch (/ (Float/intBitsToFloat (get-int buffer 40)) 1000))
+                   :roll (/ (Float/intBitsToFloat (get-int nav-data-buffer 32)) 1000)
+                   :yaw (/ (Float/intBitsToFloat (get-int nav-data-buffer 36)) 1000)
+                   :alt (double (/ (get-int nav-data-buffer 40) 1000))
+                   :pitch (/ (Float/intBitsToFloat (get-int nav-data-buffer 40)) 1000))
             (println "Navdata Parse Error")))
         (catch Exception e (println e))))))
 
